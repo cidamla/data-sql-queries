@@ -1,9 +1,9 @@
-# pylint: disable=C0103, missing-docstring
 import sqlite3
 
 conn = sqlite3.connect('/Users/damlacidamkartal/code/cidamla/data-sql-queries/data/movies.sqlite')
 db = conn.cursor()
 
+#return the list of movies with their genres and director name
 def detailed_movies(db):
     query = '''SELECT
                 movies.title,
@@ -12,35 +12,39 @@ def detailed_movies(db):
                 FROM movies
                 JOIN directors ON movies.director_id = directors.id'''
     db.execute(query)
-    results = db.fetchall()
-    return results
+    movies = db.fetchall()
+    return movies
 
+#return the list of all movies released after their director death
 def late_released_movies(db):
-    query = '''SELECT
-                movies.title
-                FROM movies
-                JOIN directors ON movies.director_id = directors.id
-                WHERE directors.death_year < movies.start_year'''
+    query = '''
+        SELECT movies.title
+        FROM directors
+        JOIN movies ON directors.id = movies.director_id
+        WHERE (movies.start_year - directors.death_year) > 0
+        ORDER BY movies.title
+    '''
     db.execute(query)
-    results = db.fetchall()
-    sol_list = []
-    for i in results:
-        sol_list.append(i[0])
-    return sol_list
+    movies = db.fetchall()
+    return [movie[0] for movie in movies]
 
+#return a dict of stats for a given genre
 def stats_on(db, genre_name):
-    query = f"SELECT COUNT(*), ROUND(AVG(minutes), 2), genres FROM movies WHERE genres = '{genre_name}'"
-    db.execute(query)
-    results = db.fetchall()
-    sol_dict = {"genre": "",
-                "number_of_movies": 0,
-                "avg_length": 0
+    query = '''
+        SELECT genres, COUNT(*), ROUND(AVG(minutes), 2)
+        FROM movies
+        WHERE genres = ?
+    '''
+    db.execute(query, (genre_name,))
+    stat = db.fetchone()
+    print(stat)
+    return {
+        'genre' : stat[0],
+        'number_of_movies': stat[1],
+        'avg_length': stat[2]
     }
-    sol_dict["genre"] = results[0][2]
-    sol_dict["number_of_movies"] = results[0][0]
-    sol_dict["avg_length"] = results[0][1]
-    return sol_dict
 
+#return the top 5 of the directors with the most movies for a given genre
 def top_five_directors_for(db, genre_name):
     query = """
         SELECT
@@ -57,6 +61,7 @@ def top_five_directors_for(db, genre_name):
     results = db.fetchall()
     return results
 
+#return the movie counts grouped by bucket of 30 min duration
 def movie_duration_buckets(db):
     query = """
         SELECT
@@ -68,7 +73,7 @@ def movie_duration_buckets(db):
     """
     return db.execute(query).fetchall()
 
-
+#return the top 5 youngest directors when they direct their first movie
 def top_five_youngest_newly_directors(db):
     query = """
         SELECT
